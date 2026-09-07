@@ -1,7 +1,7 @@
 import type { AppConfig } from "./config";
 import { recentCallBucketWeight, scoreRecentDatabaseRow } from "./account-score-database";
 import type { Sub2ApiReadClient } from "./sub2api-read-executor";
-import { modelRoutingPatternsSql } from "./scoring-error-policy";
+import { attributedInternalUpstreamFailureSql, modelRoutingPatternsSql } from "./scoring-error-policy";
 type Row = Record<string, unknown>;
 
 export interface PoolParticipation {
@@ -92,8 +92,9 @@ WITH internal_probe_keys AS (
             '%余额不足%',
             '%额度不足%'
           ])
-          OR source.message_text LIKE ANY (${modelRoutingPatternsSql})
-          OR LOWER(COALESCE(source.error_phase, '')) IN ('internal', 'client', 'business') THEN false
+          OR source.message_text LIKE ANY (${modelRoutingPatternsSql}) THEN false
+        WHEN ${attributedInternalUpstreamFailureSql("source")} THEN true
+        WHEN LOWER(COALESCE(source.error_phase, '')) IN ('internal', 'client', 'business') THEN false
         WHEN source.error_phase = 'upstream' OR LOWER(COALESCE(source.error_type, '')) LIKE '%upstream%' THEN true
         WHEN LOWER(COALESCE(source.error_message, '')) LIKE ANY (ARRAY[
           '%upstream service temporarily unavailable%', '%upstream request failed%',
@@ -112,6 +113,7 @@ WITH internal_probe_keys AS (
           '%balance is insufficient%', '%余额不足%', '%额度不足%'
         ]) THEN 'insufficient_balance'
         WHEN source.message_text LIKE ANY (${modelRoutingPatternsSql}) THEN 'model_routing'
+        WHEN ${attributedInternalUpstreamFailureSql("source")} THEN NULL
         WHEN LOWER(COALESCE(source.error_phase, '')) IN ('internal', 'client', 'business')
           THEN 'non_upstream'
         ELSE 'unscored_error'

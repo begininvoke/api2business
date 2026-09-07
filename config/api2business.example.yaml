@@ -633,14 +633,7 @@ runtime:
     composeProject: api2business-l1
     composeEnvFile: .state/compose/api2business.env
     stateDir: .state/native
-    temporalServiceRef:
-      executionPlane: route
-      route: EXAMPLE:k3s
-      kubeconfig: /etc/rancher/k3s/k3s.yaml
-      namespace: temporal
-      service: temporal-frontend
-      portName: grpc
-      resolutionTimeoutMs: 30000
+    temporalAddress: 127.0.0.1:7233
     env:
       API2BUSINESS_WEB_PASSWORD:
         sourceRef: secrets/admin-password.txt

@@ -18,3 +18,11 @@ function sqlLiteral(value: string): string {
 }
 
 export const modelRoutingPatternsSql = `ARRAY[${modelRoutingPatterns.map(sqlLiteral).join(", ")}]`;
+
+// 流已提交后的上游 5xx 可能被网关记录为 internal；只采用明确的上游状态证据。
+// 调用方仍先排除客户输入、模型路由和账务错误。
+export function attributedInternalUpstreamFailureSql(alias: "o" | "source"): string {
+  return `(${alias}.account_id IS NOT NULL
+    AND LOWER(COALESCE(${alias}.error_phase, '')) = 'internal'
+    AND COALESCE(${alias}.upstream_status_code, 0) BETWEEN 500 AND 599)`;
+}

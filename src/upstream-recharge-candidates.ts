@@ -1,7 +1,7 @@
 import type { AppConfig } from "./config";
 import { supplierIdentity } from "./account-procurement-advice";
 import { scoreRecentDatabaseRow } from "./account-score-database";
-import { modelRoutingPatternsSql } from "./scoring-error-policy";
+import { attributedInternalUpstreamFailureSql, modelRoutingPatternsSql } from "./scoring-error-policy";
 import type { OperationsStore } from "./operations-store";
 import type { Sub2ApiReadClient } from "./sub2api-read-executor";
 
@@ -85,6 +85,7 @@ WITH low_balance AS (
         ]) THEN false
       WHEN LOWER(CONCAT_WS(' ', o.error_message, o.error_body,
         o.upstream_error_message, o.upstream_error_detail)) LIKE ANY(${modelRoutingPatternsSql}) THEN false
+      WHEN ${attributedInternalUpstreamFailureSql("o")} THEN true
       WHEN LOWER(COALESCE(o.error_phase, '')) IN ('internal','client','business') THEN false
       WHEN o.error_phase='upstream' OR LOWER(COALESCE(o.error_type,'')) LIKE '%upstream%' THEN true
       WHEN LOWER(COALESCE(o.error_message,'')) LIKE ANY(ARRAY[

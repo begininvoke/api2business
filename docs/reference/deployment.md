@@ -19,6 +19,9 @@ cd api2business
 - Secret 只通过环境变量、Secret 挂载或外部 Secret 管理器注入。
 - 日志、构建输出、清单和状态接口不得输出 Secret 值。
 - API、worker 和 Web 必须使用同一版本的源码与配置。
+- 主机运行面的 Temporal 地址由 `runtime.native.temporalAddress` 显式配置。
+  - 生命周期入口不查询 Kubernetes，也不保留旧 Service 查询配置。
+  - 地址变更时先用原生命令核验目标，再更新主机连接配置。
 
 ## 方式选择
 

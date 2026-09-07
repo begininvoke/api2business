@@ -284,15 +284,7 @@ export interface AppConfig {
       composeEnvFile: string;
       stateDir: string;
       env: Record<string, SecretRef>;
-      temporalServiceRef: {
-        executionPlane: "local-k3s" | "route";
-        route: string;
-        kubeconfig: string;
-        namespace: string;
-        service: string;
-        portName: string;
-        resolutionTimeoutMs: number;
-      };
+      temporalAddress: string;
       services: Record<NativeServiceId, NativeServiceConfig>;
     };
     serverTargets: Record<string, ServerTarget>;
@@ -615,20 +607,6 @@ export function loadConfig(path: string): AppConfig {
   if (nativeMode !== "native" && nativeMode !== "docker-compose") throw new Error("runtime.native.mode must be native or docker-compose");
   const nativeServicesRaw = object(native.services, "runtime.native.services");
   const nativeEnvRaw = object(native.env, "runtime.native.env");
-  const nativeTemporalServiceRef = object(native.temporalServiceRef, "runtime.native.temporalServiceRef");
-  const nativeTemporalExecutionPlane = stringValue(
-    nativeTemporalServiceRef,
-    "executionPlane",
-    "runtime.native.temporalServiceRef",
-  );
-  if (
-    nativeTemporalExecutionPlane !== "local-k3s"
-    && nativeTemporalExecutionPlane !== "route"
-  ) {
-    throw new Error(
-      "runtime.native.temporalServiceRef.executionPlane must be local-k3s or route",
-    );
-  }
   const secretSourcePathsRaw = object(runtime.secretSourcePaths, "runtime.secretSourcePaths");
   const cliTargetsRaw = object(runtime.cliTargets, "runtime.cliTargets");
   const serverTargetsRaw = object(runtime.serverTargets, "runtime.serverTargets");
@@ -1046,15 +1024,7 @@ export function loadConfig(path: string): AppConfig {
         composeEnvFile: stringValue(native, "composeEnvFile", "runtime.native"),
         stateDir: stringValue(native, "stateDir", "runtime.native"),
         env: Object.fromEntries(Object.entries(nativeEnvRaw).map(([targetKey, value]) => [targetKey, secretRef(value, `runtime.native.env.${targetKey}`)])),
-        temporalServiceRef: {
-          executionPlane: nativeTemporalExecutionPlane,
-          route: stringValue(nativeTemporalServiceRef, "route", "runtime.native.temporalServiceRef"),
-          kubeconfig: stringValue(nativeTemporalServiceRef, "kubeconfig", "runtime.native.temporalServiceRef"),
-          namespace: stringValue(nativeTemporalServiceRef, "namespace", "runtime.native.temporalServiceRef"),
-          service: stringValue(nativeTemporalServiceRef, "service", "runtime.native.temporalServiceRef"),
-          portName: stringValue(nativeTemporalServiceRef, "portName", "runtime.native.temporalServiceRef"),
-          resolutionTimeoutMs: integerValue(nativeTemporalServiceRef, "resolutionTimeoutMs", "runtime.native.temporalServiceRef", 1000, 120000),
-        },
+        temporalAddress: stringValue(native, "temporalAddress", "runtime.native"),
         services: nativeServices,
       },
       serverTargets,

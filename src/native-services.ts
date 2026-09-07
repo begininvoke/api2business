@@ -27,7 +27,7 @@ function composeRun(config: AppConfig, action: string, component?: NativeService
     const envPath = resolve(config.rootDirectory, config.runtime.native.composeEnvFile);
     mkdirSync(resolve(envPath, ".."), { recursive: true, mode: 0o700 });
     const lines = Object.entries(config.runtime.native.env).map(([key, ref]) => `${key}=${readSecret(config, ref).replace(/\\/gu, "\\\\").replace(/\n/gu, "\\n")}`);
-    lines.push(`${config.temporal.addressEnv}=${resolveTemporalAddress(config)}`);
+    lines.push(`${config.temporal.addressEnv}=${config.runtime.native.temporalAddress}`);
     writeFileSync(envPath, `${lines.join("\n")}\n`, { encoding: "utf8", mode: 0o600 });
     chmodSync(envPath, 0o600);
   }
@@ -37,29 +37,6 @@ function composeRun(config: AppConfig, action: string, component?: NativeService
   if (result.status !== 0) throw new Error((result.stderr || result.stdout || `docker compose ${action} failed`).trim());
   if (action === "ps") return { ok: true, component: component ?? "all", action, output: result.stdout.trim(), mutation: false, valuesPrinted: false };
   return { ok: true, component: component ?? "all", action, output: result.stdout.trim(), mutation: action === "up" || action === "stop" || action === "down", valuesPrinted: false };
-}
-
-function resolveTemporalAddress(config: AppConfig): string {
-  const ref = config.runtime.native.temporalServiceRef;
-  const kubectlArgs = [
-    "-n",
-    ref.namespace,
-    "get",
-    "service",
-    ref.service,
-    "-o",
-    `jsonpath={.spec.clusterIP}:{.spec.ports[?(@.name=="${ref.portName}")].port}`,
-  ];
-  const command = ref.executionPlane === "local-k3s" ? "kubectl" : "trans";
-  const args = ref.executionPlane === "local-k3s"
-    ? ["--kubeconfig", ref.kubeconfig, ...kubectlArgs]
-    : [ref.route, "kubectl", ...kubectlArgs];
-  const result = spawnSync(command, args, { encoding: "utf8", timeout: ref.resolutionTimeoutMs });
-  const address = result.stdout.trim();
-  if (result.status !== 0 || !/^[0-9a-f:.]+:[1-9][0-9]*$/iu.test(address)) {
-    throw new Error(`native temporal service resolution failed for ${ref.namespace}/${ref.service}`);
-  }
-  return address;
 }
 
 function paths(config: AppConfig, component: NativeServiceId): { stateDir: string; pid: string; log: string } {
@@ -104,7 +81,7 @@ function nativeEnvironment(
     if (ref) env[targetKey] = readSecret(config, ref);
   }
   if (nativeComponentRequiresTemporalAddress(config, component)) {
-    env[config.temporal.addressEnv] = resolveTemporalAddress(config);
+    env[config.temporal.addressEnv] = config.runtime.native.temporalAddress;
   }
   env.API2BUSINESS_CONFIG_PATH = config.configPath;
   env.API2BUSINESS_RUNTIME_ID = "native";
